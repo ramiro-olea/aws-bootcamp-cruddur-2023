@@ -1,6 +1,6 @@
 # Week 0 — Billing and Architecture
 
-Week zero was more on the sense of knowing what we are going to create in all the bootcamp, but more from a realistic way, meaning having a scenario where we are hired by a company to create X or Y application.
+Week zero was more on the sense of knowing what we are going to create in the bootcamp, but more from a realistic way, meaning having a scenario where we are hired by a company to create X or Y application.
 
 I created a AWS account from zero, and got to apply all the security best practices that were taught on the live session and that AWS itself recommend.
 
