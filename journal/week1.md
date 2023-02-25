@@ -40,9 +40,8 @@ In order to contenirize your application, you have to create a Dockerfile, build
 * docker run -p 3000:3000 -d frontend-react-js
 
 **It's really important to note that to run the frontend, some coding is required before running the application:
-
+```
 cd frontend-react-js
-
 npm i
 
 * Once you install what is required, you will have to make public the port so you can see the website running:
@@ -60,5 +59,127 @@ Add notifications module to the API:
 ![image](https://user-images.githubusercontent.com/62669887/221332737-a58ba12d-53c6-4322-aa82-27990e50e7d6.png)
 * Add notifications.py code to the backend folder, and then update app.py code so notifications module can be reached:
 ![image](https://user-images.githubusercontent.com/62669887/221332681-ac478743-06e9-43eb-b80e-8c1969bd1aaa.png)
+
+* From frontend perspective, notificationsfeedpage.js has to be added in order to see this module on the website and app.js has to be updated in order to call new notifications site:
+![image](https://user-images.githubusercontent.com/62669887/221335050-f814f323-8de5-44c7-9994-dad9b394d277.png)
+![image](https://user-images.githubusercontent.com/62669887/221335062-34c6f6bf-30af-46f7-a5c6-99669b69ea3c.png)
+
+* After this, frontend will be ready with the new notifications module:
+![image](https://user-images.githubusercontent.com/62669887/221335089-aaf2f117-da3d-4651-a9fc-899686b20e7f.png)
+
+## Local DynamoDB and Postgres
+
+Just to be ready for the upcoming weeks, DynamoDB and Postgres are installed locally to test them, and the make the integration to the cloud service (in upcoming weeks). In order to do this, docker compose file has to be updated and some code lines ahd to be added:
+
+Postgres
+```yaml
+services:
+  db:
+    image: postgres:13-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    ports:
+      - '5432:5432'
+    volumes: 
+      - db:/var/lib/postgresql/data
+volumes:
+  db:
+    driver: local
+To install the postgres client into Gitpod
+```yaml
+  - name: postgres
+    init: |
+      curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc|sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/postgresql.gpg
+      echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" |sudo tee  /etc/apt/sources.list.d/pgdg.list
+      sudo apt update
+      sudo apt install -y postgresql-client-13 libpq-dev
+DynamoDB Local
+```yaml
+services:
+  dynamodb-local:
+    https://stackoverflow.com/questions/67533058/persist-local-dynamodb-data-in-volumes-lack-permission-unable-to-open-databa
+    We needed to add user:root to get this working.
+    user: root
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath ./data"
+    image: "amazon/dynamodb-local:latest"
+    container_name: dynamodb-local
+    ports:
+      - "8000:8000"
+    volumes:
+      - "./docker/dynamodb:/home/dynamodblocal/data"
+    working_dir: /home/dynamodblocal
+
+Volumes are also updated in the docker compose file:
+  
+directory volume mapping
+
+volumes: 
+- "./docker/dynamodb:/home/dynamodblocal/data"
+named volume mapping
+
+volumes: 
+  - db:/var/lib/postgresql/data
+
+volumes:
+  db:
+    driver: local
+
+### Full docker compose file has to be something like this:
+``` yaml
+version: "3.8"
+services:
+  backend-flask:
+    environment:
+      FRONTEND_URL: "https://3000-${GITPOD_WORKSPACE_ID}.${GITPOD_WORKSPACE_CLUSTER_HOST}"
+      BACKEND_URL: "https://4567-${GITPOD_WORKSPACE_ID}.${GITPOD_WORKSPACE_CLUSTER_HOST}"
+    build: ./backend-flask
+    ports:
+      - "4567:4567"
+    volumes:
+      - ./backend-flask:/backend-flask
+  frontend-react-js:
+    environment:
+      REACT_APP_BACKEND_URL: "https://4567-${GITPOD_WORKSPACE_ID}.${GITPOD_WORKSPACE_CLUSTER_HOST}"
+    build: ./frontend-react-js
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend-react-js:/frontend-react-js
+  dynamodb-local:
+    https://stackoverflow.com/questions/67533058/persist-local-dynamodb-data-in-volumes-lack-permission-unable-to-open-databa
+    We needed to add user:root to get this working.
+    user: root
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath ./data"
+    image: "amazon/dynamodb-local:latest"
+    container_name: dynamodb-local
+    ports:
+      - "8000:8000"
+    volumes:
+      - "./docker/dynamodb:/home/dynamodblocal/data"
+    working_dir: /home/dynamodblocal
+  db:
+    image: postgres:13-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    ports:
+      - '5432:5432'
+    volumes: 
+      - db:/var/lib/postgresql/data    
+ #the name flag is a hack to change the default prepend folder
+ #name when outputting the image names
+networks: 
+  internal-network:
+    driver: bridge
+    name: cruddur
+
+volumes:
+  db:
+    driver: local
+
+
 
 
