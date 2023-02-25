@@ -39,12 +39,13 @@ In order to contenirize your application, you have to create a Dockerfile, build
 * docker run --rm -p 4567:4567 -it backend-flask
 * docker run -p 3000:3000 -d frontend-react-js
 
-**It's really important to note that to run the frontend, some coding is required before running the application:
-```
-cd frontend-react-js
-npm i
+It's really important to note that to run the frontend, some coding is required before running the application:
 
-* Once you install what is required, you will have to make public the port so you can see the website running:
+  * cd frontend-react-js
+  * npm i
+
+Once you install what is required, you will have to make public the port so you can see the website running:
+
 ![image](https://user-images.githubusercontent.com/62669887/221335502-d35cc84a-591e-41a7-8d18-4a9355df50a6.png)
 ![image](https://user-images.githubusercontent.com/62669887/221332249-2c1d56e9-ae51-492a-bf16-447d8c60051d.png)
 
@@ -179,7 +180,3 @@ networks:
 volumes:
   db:
     driver: local
-
-
-
-
