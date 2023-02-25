@@ -45,7 +45,7 @@ cd frontend-react-js
 npm i
 
 * Once you install what is required, you will have to make public the port so you can see the website running:
-![image](https://user-images.githubusercontent.com/62669887/221332228-ee96da2f-6190-488b-915e-6b6486690826.png)
+![image](https://user-images.githubusercontent.com/62669887/221335502-d35cc84a-591e-41a7-8d18-4a9355df50a6.png)
 ![image](https://user-images.githubusercontent.com/62669887/221332249-2c1d56e9-ae51-492a-bf16-447d8c60051d.png)
 
 You can run the containers together instead of running them independently using docker compose. A file has to be created and then you will be able to run the containers you want at the same time:
