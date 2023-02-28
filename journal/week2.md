@@ -1,5 +1,22 @@
 # Week 2 — Distributed Tracing
 
+* Add the following code to gitpod.yml file, so ports can be automatically opened:
+```sh
+ports:
+  - name: frontend
+    port: 3000
+    onOpen: open-browser
+    visibility: public
+  - name: backend
+    port: 4567
+    visibility: public
+  - name: xray-daemon
+    port: 2000
+    visibility: public
+```
+![image](https://user-images.githubusercontent.com/62669887/221718304-feda45e9-fd68-4798-b280-7b4feea01377.png)
+
+
 ## HoneyComb
 
 * Create a new environment for the cruddr app on your HoneyComb account:
@@ -59,3 +76,68 @@ FlaskInstrumentor().instrument_app(app)
 RequestsInstrumentor().instrument()
 ```
 ![image](https://user-images.githubusercontent.com/62669887/221714828-41f78d8a-37a0-42c3-b50d-7d23a1462969.png)
+
+* In order to add an span you can go, for example, to home_activities.py and add some coding, so HoneyComb can get that data. Full code should be something like this:
+```yaml
+from datetime import datetime, timedelta, timezone
+from opentelemetry import trace
+
+tracer = trace.get_tracer("home.activities")
+
+class HomeActivities:
+  def run():
+    with tracer.start_as_current_span("home-activites-mock-data"):
+      span = trace.get_current_span()
+      now = datetime.now(timezone.utc).astimezone()
+      span.set_attribute("app.now", now.isoformat())
+      results = [{
+      'uuid': '68f126b0-1ceb-4a33-88be-d90fa7109eee',
+      'handle':  'Andrew Brown',
+      'message': 'Cloud is fun!',
+      'created_at': (now - timedelta(days=2)).isoformat(),
+      'expires_at': (now + timedelta(days=5)).isoformat(),
+      'likes_count': 5,
+      'replies_count': 1,
+      'reposts_count': 0,
+      'replies': [{
+        'uuid': '26e12864-1c26-5c3a-9658-97a10f8fea67',
+        'reply_to_activity_uuid': '68f126b0-1ceb-4a33-88be-d90fa7109eee',
+        'handle':  'Worf',
+        'message': 'This post has no honor!',
+        'likes_count': 0,
+        'replies_count': 0,
+        'reposts_count': 0,
+        'created_at': (now - timedelta(days=2)).isoformat()
+      }],
+    },
+    {
+      'uuid': '66e12864-8c26-4c3a-9658-95a10f8fea67',
+      'handle':  'Worf',
+      'message': 'I am out of prune juice',
+      'created_at': (now - timedelta(days=7)).isoformat(),
+      'expires_at': (now + timedelta(days=9)).isoformat(),
+      'likes': 0,
+      'replies': []
+    },
+    {
+      'uuid': '248959df-3079-4947-b847-9e0892d1bab4',
+      'handle':  'Garek',
+      'message': 'My dear doctor, I am just simple tailor',
+      'created_at': (now - timedelta(hours=1)).isoformat(),
+      'expires_at': (now + timedelta(hours=12)).isoformat(),
+      'likes': 0,
+      'replies': []
+    }
+    ]
+    span.set_attribute("app.result_length", len(results))
+    return results
+ ```
+ ![image](https://user-images.githubusercontent.com/62669887/221728628-bdd36ec3-05ed-4fa8-9811-837c5af9fc96.png)
+
+** It is really important to get the API_KEY environment set, if not, data will not be sent to HoneyComb**
+* You can go to HoneyComb site and check all the spans and traces that were added, and check all the data it shows:
+![image](https://user-images.githubusercontent.com/62669887/221729308-f21fd729-5949-4ba8-a365-e92ec6516b64.png)
+![image](https://user-images.githubusercontent.com/62669887/221729523-0a30c4b6-1233-4b76-a983-2594bab02d9b.png)
+![image](https://user-images.githubusercontent.com/62669887/221729379-6c729730-9b94-477f-a5b2-8396dd27bcf2.png)
+![image](https://user-images.githubusercontent.com/62669887/221729465-761f0636-3cd4-4ec8-9153-c0a7e3b2ed2b.png)
+
