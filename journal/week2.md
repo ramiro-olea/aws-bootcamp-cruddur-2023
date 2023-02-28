@@ -141,3 +141,58 @@ class HomeActivities:
 ![image](https://user-images.githubusercontent.com/62669887/221729379-6c729730-9b94-477f-a5b2-8396dd27bcf2.png)
 ![image](https://user-images.githubusercontent.com/62669887/221729465-761f0636-3cd4-4ec8-9153-c0a7e3b2ed2b.png)
 
+
+# AWS X-Ray
+* If you didn't set the AWS region enviornment, do it now:
+```sh
+export AWS_REGION="us-east-1"
+gp env AWS_REGION="us-east-1"
+```
+* Add the following code to the requirements.txt file on backend-flask folder:
+```sh
+aws-xray-sdk
+```
+* On the same folder, add the following code in app.py file:
+```sh
+from aws_xray_sdk.core import xray_recorder
+from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
+
+xray_url = os.getenv("AWS_XRAY_URL")
+xray_recorder.configure(service='backend-flask', dynamic_naming=xray_url)
+XRayMiddleware(app, xray_recorder)
+```
+![image](https://user-images.githubusercontent.com/62669887/221956472-f5a71140-902d-462c-bf11-7afebfa62ac9.png)
+* In AWS/JSON folder, create a new file called xray.json and add the following code:
+```json
+{
+  "SamplingRule": {
+      "RuleName": "Cruddur",
+      "ResourceARN": "*",
+      "Priority": 9000,
+      "FixedRate": 0.1,
+      "ReservoirSize": 5,
+      "ServiceName": "backend-flask",
+      "ServiceType": "*",
+      "Host": "*",
+      "HTTPMethod": "*",
+      "URLPath": "*",
+      "Version": 1
+  }
+}
+```
+* On the terminal create a new group for xray:
+```sh
+aws xray create-group \
+   --group-name "Cruddur" \
+   --filter-expression "service(\"backend-flask\")"
+```
+* You can review if the group is created on the AWS-X-ray GUI.
+![image](https://user-images.githubusercontent.com/62669887/221958575-2f3e2d3b-c942-4b06-a361-d5372a0c83d0.png)
+* Create a sampling rule on GitPod terminal:
+```sh
+aws xray create-sampling-rule --cli-input-json file://aws/json/xray.json
+```
+![image](https://user-images.githubusercontent.com/62669887/221958511-8acd445a-3ffb-48d8-a513-78238480c4e5.png)
+
+
+
