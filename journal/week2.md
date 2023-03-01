@@ -33,13 +33,13 @@ OTEL_EXPORTER_OTLP_HEADERS: "x-honeycomb-team=${HONEYCOMB_API_KEY}"
 OTEL_SERVICE_NAME: "backend-flask"
 ```
 * On requirements.txt add the following and save:
-
+```sh
 opentelemetry-api 
 opentelemetry-sdk 
 opentelemetry-exporter-otlp-proto-http 
 opentelemetry-instrumentation-flask 
 opentelemetry-instrumentation-requests
-
+```
 * Install the dependencies on the gitpod workspace:
 ```sh
 cd backend-flask/
@@ -161,7 +161,7 @@ xray_url = os.getenv("AWS_XRAY_URL")
 xray_recorder.configure(service='backend-flask', dynamic_naming=xray_url)
 XRayMiddleware(app, xray_recorder)
 ```
-![image](https://user-images.githubusercontent.com/62669887/221956472-f5a71140-902d-462c-bf11-7afebfa62ac9.png)
+![image](https://user-images.githubusercontent.com/62669887/222004169-2cca8ff3-d905-4d91-bc3f-656c978a44d2.png)
 * In AWS/JSON folder, create a new file called xray.json and add the following code:
 ```json
 {
@@ -193,6 +193,68 @@ aws xray create-group \
 aws xray create-sampling-rule --cli-input-json file://aws/json/xray.json
 ```
 ![image](https://user-images.githubusercontent.com/62669887/221958511-8acd445a-3ffb-48d8-a513-78238480c4e5.png)
+
+# Add Deamon Service as a container with Docker Compose
+* Add following code to the Docker compose file:
+```yaml
+  xray-daemon:
+    image: "amazon/aws-xray-daemon"
+    environment:
+      AWS_ACCESS_KEY_ID: "${AWS_ACCESS_KEY_ID}"
+      AWS_SECRET_ACCESS_KEY: "${AWS_SECRET_ACCESS_KEY}"
+      AWS_REGION: "us-east-1"
+    command:
+      - "xray -o -b xray-daemon:2000"
+    ports:
+      - 2000:2000/udp
+```
+* Add the following environment variables to the same Docker Compose file:
+```yaml
+      AWS_XRAY_URL: "*4567-${GITPOD_WORKSPACE_ID}.${GITPOD_WORKSPACE_CLUSTER_HOST}*"
+      AWS_XRAY_DAEMON_ADDRESS: "xray-daemon:2000"
+```
+![image](https://user-images.githubusercontent.com/62669887/222003118-835e151f-26c5-4150-a175-5aa10cc81aa1.png)
+
+* Run Docker compose file and check if everything is working correctly. You can check X-ray traces in AWS GUI to confirm this:
+![image](https://user-images.githubusercontent.com/62669887/222005287-1397c6e1-ff38-4331-83d1-0e4fb005b4b0.png)
+
+# CloudWatch Logs
+In order the app send logs to cloudWatch, following steps have to be followed:
+* Add the following to requirements.txt:
+```sh
+watchtower
+```
+* Go to backend-flask folder and update:
+```sh
+pip install -r requirements.txt 
+```
+* Add the following code to app.py file:
+```sh
+import watchtower
+import logging
+from time import strftime
+
+# Configuring Logger to Use CloudWatch
+LOGGER = logging.getLogger(__name__)
+LOGGER.setLevel(logging.DEBUG)
+console_handler = logging.StreamHandler()
+cw_handler = watchtower.CloudWatchLogHandler(log_group='cruddur')
+LOGGER.addHandler(console_handler)
+LOGGER.addHandler(cw_handler)
+LOGGER.info("some message")
+
+@app.after_request
+def after_request(response):
+    timestamp = strftime('[%Y-%b-%d %H:%M]')
+    LOGGER.error('%s %s %s %s %s %s', timestamp, request.remote_addr, request.method, request.scheme, request.full_path, response.status)
+    return response
+```
+![image](https://user-images.githubusercontent.com/62669887/222016213-dba2013d-d516-4b7a-bcc1-fed93e1f8bee.png)
+* Check in CloudWatch UI if group and logs have been created:
+![image](https://user-images.githubusercontent.com/62669887/222015978-297c7f18-9928-4b45-95f9-30ef50e9e065.png)
+![image](https://user-images.githubusercontent.com/62669887/222015901-10a9469c-45da-42e9-a7f2-8550365ed5e4.png)
+![image](https://user-images.githubusercontent.com/62669887/222016101-e2469dce-a109-45c5-ac8a-e5e60c476c34.png)
+
 
 
 
