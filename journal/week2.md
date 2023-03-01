@@ -255,6 +255,56 @@ def after_request(response):
 ![image](https://user-images.githubusercontent.com/62669887/222015901-10a9469c-45da-42e9-a7f2-8550365ed5e4.png)
 ![image](https://user-images.githubusercontent.com/62669887/222016101-e2469dce-a109-45c5-ac8a-e5e60c476c34.png)
 
+# Rollbar
+* Add the following in requirements.txt from backend-flask folder:
+```sh
+blinker
+rollbar
+```
+* Install:
+```sh
+pip install -r requirements.txt
+```
+* Set the token variable on the workspace:
+```sh
+export ROLLBAR_ACCESS_TOKEN=" "
+gp env ROLLBAR_ACCESS_TOKEN=" "
+```
+* In app.yml add the following code:
+```yaml
+import os
+import rollbar
+import rollbar.contrib.flask
+from flask import got_request_exception
 
+rollbar_access_token = os.getenv('ROLLBAR_ACCESS_TOKEN')
+@app.before_first_request
+def init_rollbar():
+    """init rollbar module"""
+    rollbar.init(
+        # access token
+        rollbar_access_token,
+        # environment name
+        'production',
+        # server root directory, makes tracebacks prettier
+        root=os.path.dirname(os.path.realpath(__file__)),
+        # flask already sets up logging
+        allow_logging_basic_config=False)
+
+    # send exceptions from `app` to rollbar, using flask's signal system.
+    got_request_exception.connect(rollbar.contrib.flask.report_exception, app)
+```
+* In order to test rollbar, we add an endpoint:
+```yaml
+@app.route('/rollbar/test')
+def rollbar_test():
+    rollbar.report_message('Hello World!', 'warning')
+    return "Hello World!"
+```
+![image](https://user-images.githubusercontent.com/62669887/222018973-0de1f893-9816-4a47-93ef-630a7c084fc5.png)
+* Test everything works correctly:
+![image](https://user-images.githubusercontent.com/62669887/222019059-c22924d5-4c9d-40f2-84b1-3a5b1f2adb64.png)
+![image](https://user-images.githubusercontent.com/62669887/222019695-eff6fa70-9b69-4679-a26b-e4dc6cdb5295.png)
+![image](https://user-images.githubusercontent.com/62669887/222019861-3ed5601a-be65-42c0-a552-4ac4d5168ba0.png)
 
 
