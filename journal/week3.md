@@ -18,3 +18,41 @@ AWS Cognito is a secure identity and access management for apps. To create a cog
 ![image](https://user-images.githubusercontent.com/62669887/223296240-ebc395a0-b65d-48ad-8ac8-b92f8a4c6942.png)
 * Click revie and create and verify that the user-pool has been created:
 ![image](https://user-images.githubusercontent.com/62669887/223296439-6d76bb38-741b-4f7c-9326-91535b7b92a0.png)
+
+## AWS Amplify
+* Install AWS Amplify on Gitpod workspace:
+```sh
+cd frontend-react-js
+npm i aws-amplify --save
+```
+![image](https://user-images.githubusercontent.com/62669887/223298404-af696963-5ab8-44bd-a3fb-834c5f4a32e2.png)
+* Add the following code in app.js:
+```sh
+import { Amplify } from 'aws-amplify';
+
+Amplify.configure({
+  "AWS_PROJECT_REGION": process.env.REACT_AWS_PROJECT_REGION,
+  "aws_cognito_region": process.env.REACT_APP_AWS_COGNITO_REGION,
+  "aws_user_pools_id": process.env.REACT_APP_AWS_USER_POOLS_ID,
+  "aws_user_pools_web_client_id": process.env.REACT_APP_CLIENT_ID,
+  "oauth": {},
+  Auth: {
+    // We are not using an Identity Pool
+    // identityPoolId: process.env.REACT_APP_IDENTITY_POOL_ID, // REQUIRED - Amazon Cognito Identity Pool ID
+    region: process.env.REACT_AWS_PROJECT_REGION,           // REQUIRED - Amazon Cognito Region
+    userPoolId: process.env.REACT_APP_AWS_USER_POOLS_ID,         // OPTIONAL - Amazon Cognito User Pool ID
+    userPoolWebClientId: process.env.REACT_APP_AWS_USER_POOLS_WEB_CLIENT_ID,   // OPTIONAL - Amazon Cognito Web Client ID (26-char alphanumeric string)
+  }
+});
+```
+![image](https://user-images.githubusercontent.com/62669887/223299898-b284d614-44f4-48cd-8d3d-f7dd277be6d9.png)
+* Update docker compose file with the following information below the frontend-react-js - environment:
+```sh
+      REACT_AWS_PROJECT_REGION: ""
+      REACT_APP_AWS_COGNITO_REGION: ""
+      REACT_APP_AWS_USER_POOLS_ID: ""
+      REACT_APP_CLIENT_ID: ""
+```
+![image](https://user-images.githubusercontent.com/62669887/223302402-a22d84c3-b978-4778-8401-ade0c11b7e51.png)
+
+
