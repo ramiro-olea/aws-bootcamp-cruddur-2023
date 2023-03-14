@@ -12,7 +12,7 @@ AWS Cognito is a secure identity and access management for apps. To create a cog
 ![image](https://user-images.githubusercontent.com/62669887/223293263-bb542cb2-0ec4-41a6-b30a-7c709f967a38.png)
 * On the next step, enable Enable self-registration, then select Allow Cognito to automatically send messages to verify and confirm and Send email message, verify email address. Next select Keep original attribute value active when an update is pending and leave email selected (per default). On required attributes, add name attribute; custom attributes are left blank:
 ![image](https://user-images.githubusercontent.com/62669887/223294394-22e0df0b-9e07-4e5f-ab75-ceb7cebdd635.png)
-* On the next step, select Sen email with cognito and leave everyting else as per default and click next:
+* On the next step, select Send email with cognito and leave everyting else as per default and click next:
 ![image](https://user-images.githubusercontent.com/62669887/223294850-32e46126-c086-4515-a573-2eab8948f8cb.png)
 * On the next step name the user pool: cruddur-user-pool. Disable Use the Cognito Hosted UI. Select Public client and name the app: Cruddur and select Don't generate a client secret; rest leave as per default and click next:
 ![image](https://user-images.githubusercontent.com/62669887/223296240-ebc395a0-b65d-48ad-8ac8-b92f8a4c6942.png)
@@ -97,4 +97,118 @@ const signOut = async () => {
   }
 }
 ```
+* Add the following on GitPod CLI in order to have the user registered on Cruddur:
+```sh
+aws cognito-idp admin-set-user-password --username xxxxxxxx --password xxxxxxxxx --user-pool-id xxxxxxx --permanent
+```
+* Update AWS Cognito in order to show name and user name:
+![image](https://user-images.githubusercontent.com/62669887/224848802-b7ac2227-1274-417e-a0ad-0b0bad9d7e1f.png)
+![image](https://user-images.githubusercontent.com/62669887/224848889-c13548c5-1a64-44f5-975b-b6c6e6e25208.png)
 
+* Create Signup Page
+* Delete Coginito user
+* Add following command in SignupPage.js:
+```js
+import { Auth } from 'aws-amplify';
+
+const [cognitoErrors, setCognitoErrors] = React.useState('');
+
+const onsubmit = async (event) => {
+  event.preventDefault();
+  setErrors('')
+  try {
+      const { user } = await Auth.signUp({
+        username: email,
+        password: password,
+        attributes: {
+            name: name,
+            email: email,
+            preferred_username: username,
+        },
+        autoSignIn: { // optional - enables auto sign in after user is confirmed
+            enabled: true,
+        }
+      });
+      console.log(user);
+      window.location.href = `/confirm?email=${email}`
+  } catch (error) {
+      console.log(error);
+      setErrors(error.message)
+  }
+  return false
+}
+
+let errors;
+if (cognitoErrors){
+  errors = <div className='errors'>{cognitoErrors}</div>;
+}
+
+//before submit component
+{errors}
+```
+* Add following code to ConfirmationPage.js:
+```js
+import { Auth } from 'aws-amplify';
+
+const resend_code = async (event) => {
+  setCognitoErrors('')
+  try {
+    await Auth.resendSignUp(email);
+    console.log('code resent successfully');
+    setCodeSent(true)
+  } catch (err) {
+    // does not return a code
+    // does cognito always return english
+    // for this to be an okay match?
+    console.log(err)
+    if (err.message == 'Username cannot be empty'){
+      setCognitoErrors("You need to provide an email in order to send Resend Activiation Code")   
+    } else if (err.message == "Username/client id combination not found."){
+      setCognitoErrors("Email is invalid or cannot be found.")   
+    }
+  }
+}
+
+const onsubmit = async (event) => {
+  event.preventDefault();
+  setCognitoErrors('')
+  try {
+    await Auth.confirmSignUp(email, code);
+    window.location.href = "/"
+  } catch (error) {
+    setCognitoErrors(error.message)
+  }
+  return false
+}
+* Create a new user pol using only email as sign in.
+* User has to be created.
+* Recover password:
+* Add the following code in RecoverPage.js:
+```js
+import { Auth } from 'aws-amplify';
+
+const onsubmit_send_code = async (event) => {
+  event.preventDefault();
+  setCognitoErrors('')
+  Auth.forgotPassword(username)
+  .then((data) => setFormState('confirm_code') )
+  .catch((err) => setCognitoErrors(err.message) );
+  return false
+}
+
+const onsubmit_confirm_code = async (event) => {
+  event.preventDefault();
+  setCognitoErrors('')
+  if (password == passwordAgain){
+    Auth.forgotPasswordSubmit(username, code, password)
+    .then((data) => setFormState('success'))
+    .catch((err) => setCognitoErrors(err.message) );
+  } else {
+    setCognitoErrors('Passwords do not match')
+  }
+  return false
+}
+```
+![image](https://user-images.githubusercontent.com/62669887/224862070-93017018-8267-4531-a32b-d263f2943b13.png)
+![image](https://user-images.githubusercontent.com/62669887/224862142-f9c1efe2-6556-4a87-8808-230ebaf31687.png)
+![image](https://user-images.githubusercontent.com/62669887/224862235-4f4b4d87-12fc-49ab-921b-b2cf47b3b69b.png)
