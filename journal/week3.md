@@ -212,3 +212,25 @@ const onsubmit_confirm_code = async (event) => {
 ![image](https://user-images.githubusercontent.com/62669887/224862070-93017018-8267-4531-a32b-d263f2943b13.png)
 ![image](https://user-images.githubusercontent.com/62669887/224862142-f9c1efe2-6556-4a87-8808-230ebaf31687.png)
 ![image](https://user-images.githubusercontent.com/62669887/224862235-4f4b4d87-12fc-49ab-921b-b2cf47b3b69b.png)
+
+* In `HomeFeedPage.js` add header to pass along the access token:
+```js
+  headers: {
+    Authorization: `Bearer ${localStorage.getItem("access_token")}`
+  }
+```
+* In `app.py` add the following code:
+```py
+cors = CORS(
+  app, 
+  resources={r"/api/*": {"origins": origins}},
+  headers=['Content-Type', 'Authorization'], 
+  expose_headers='Authorization',
+  methods="OPTIONS,GET,HEAD,POST"
+)
+```
+* Add in `requirements.txt` the following:
+```sh
+Flask-AWSCognito
+```
+* Update `
