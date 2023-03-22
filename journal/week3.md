@@ -233,4 +233,6 @@ cors = CORS(
 ```sh
 Flask-AWSCognito
 ```
-* Update `
+* If you want, you can change some coloring of the UI, playing with different colors using Chrome inspect tool (I did).
+![image](https://user-images.githubusercontent.com/62669887/226773932-2bf3272b-d8e4-4a71-a79c-87688f20aab2.png)
+
