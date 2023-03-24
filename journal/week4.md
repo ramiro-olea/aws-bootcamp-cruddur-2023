@@ -399,3 +399,85 @@ psql $URL
 ```
 * Test if everything works correctly.
 ![image](https://user-images.githubusercontent.com/62669887/227399997-53207445-531d-43e0-b58b-a24f0a8e24ab.png)
+
+## Create an AWS Lambda function
+* Go to AWS console, to Lambda function, and create the following function:
+![image](https://user-images.githubusercontent.com/62669887/227646479-d2806f3e-f021-4a03-9eec-45e6ed287703.png)
+```json
+import json
+import psycopg2
+import os
+
+def lambda_handler(event, context):
+    user = event['request']['userAttributes']
+    print('userAttributes')
+    print(user)
+
+    user_display_name  = user['name']
+    user_email         = user['email']
+    user_handle        = user['preferred_username']
+    user_cognito_id    = user['sub']
+    try:
+      print('entered-try')
+      sql = f"""
+         INSERT INTO public.users (
+          display_name, 
+          email,
+          handle, 
+          cognito_user_id
+          ) 
+        VALUES(
+          '{user_display_name}', 
+          '{user_email}', 
+          '{user_handle}', 
+          '{user_cognito_id}'
+        )
+      """
+      print('SQL Statement ----')
+      print(sql)
+      conn = psycopg2.connect(os.getenv('CONNECTION_URL'))
+      cur = conn.cursor()
+      cur.execute(sql)
+      conn.commit() 
+
+    except (Exception, psycopg2.DatabaseError) as error:
+      print(error)
+    finally:
+      if conn is not None:
+          cur.close()
+          conn.close()
+          print('Database connection closed.')
+    return event
+```
+* Add environment variables to Lambda:
+CONNECTION_URL = postgresql://cruddurroot:xxxxxxxxxx@cruddur-db-instance.c0ussrsbrd1a.us-east-1.rds.amazonaws.com:5432/cruddur
+* Add Lambda layers for your region/AZ:
+![image](https://user-images.githubusercontent.com/62669887/227651994-e478ce87-ad97-4ba8-a6c4-bdf6f32118f1.png)
+arn:aws:lambda:us-east-1:898466741470:layer:psycopg2-py38:2
+* Add Lambda triggers to cognito user pool:
+![image](https://user-images.githubusercontent.com/62669887/227651862-99f47c85-6876-4b83-adb1-3a8835932d7e.png)
+* Add permission to Lambda Funtion by creating and attaching a policy called ```AWSLambdaVPCAccessExecutionRole```:
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ec2:DescribeNetworkInterfaces",
+                "ec2:CreateNetworkInterface",
+                "ec2:DeleteNetworkInterface",
+                "ec2:DescribeInstances",
+                "ec2:AttachNetworkInterface"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+```
+* Attach Lambda funtion to VPC:
+![image](https://user-images.githubusercontent.com/62669887/227655425-d2e57990-b02e-4c45-96e5-a5eb91a102ed.png)
+* Create a new user (sign on) on Cruddur app and check if database is working correctly:
+![image](https://user-images.githubusercontent.com/62669887/227659010-8e62b982-cbd2-45a4-99bc-631ce79a338b.png)
+
+
