@@ -402,7 +402,7 @@ psql $URL
 
 ## Create an AWS Lambda function
 * Go to AWS console, to Lambda function, and create the following function:
-Also create a folder under aws called lambdas a create a new file called ```cruddur-post-confirrmation.py``` with the same code.
+Also create a folder under aws called lambdas and create a new file called ```cruddur-post-confirrmation.py``` with the same code.
 ![image](https://user-images.githubusercontent.com/62669887/227646479-d2806f3e-f021-4a03-9eec-45e6ed287703.png)
 ```json
 import json
@@ -439,7 +439,7 @@ def lambda_handler(event, context):
         user_handle,
         user_cognito_id
       ]
-      cur.execute(sql,*params)
+      cur.execute(sql,params)
       conn.commit() 
 
     except (Exception, psycopg2.DatabaseError) as error:
@@ -736,4 +736,28 @@ INNER JOIN public.users ON users.uuid = activities.user_uuid
 WHERE 
   activities.uuid = %(uuid)s
 ```
+* Based on anle4s post on Dicord (https://discord.com/channels/1055552619441049660/1086233246691495968), do the following updates:
+* Update the ```pages/HomeFeedPage.js``` to pass the user_handle prop as follows:
+```js
+<ActivityForm
+  user_handle={user}
+  popped={popped}
+  setPopped={setPopped}
+  setActivities={setActivities}
+/>
+```
+* In the ```components/ActivityForm.js``` component, update the fetch request body to include the user_handle:
+```js
+body: JSON.stringify({
+  user_handle: props.user_handle.handle,
+  message: message,
+  ttl: ttl
+}),
+```
+* In ```app.py```, under the /api/activities route, assign the user_handle variable as follows:
+```js
+user_handle = request.json["user_handle"]
+```
 * Check if everything works correctly:
+![image](https://user-images.githubusercontent.com/62669887/227723679-5a9d1e62-a582-4298-99c0-eb45f4cb969a.png)
+![image](https://user-images.githubusercontent.com/62669887/227723700-129ff194-ba9e-4f7b-af5f-f9e58ed5ec85.png)
