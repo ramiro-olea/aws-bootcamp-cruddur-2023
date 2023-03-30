@@ -3,6 +3,7 @@ INSERT INTO public.users (display_name, handle, email, cognito_user_id)
 VALUES
   ('Andrew Brown', 'andrewbrown' ,'mock1@mock.com' ,'MOCK'),
   ('Andrew Bayko', 'bayko' ,'mock1@mock.com','MOCK');
+  ('Londo Mollari', 'londo' ,'lmollari@mock.com','MOCK');
 
 INSERT INTO public.activities (user_uuid, message, expires_at)
 VALUES
