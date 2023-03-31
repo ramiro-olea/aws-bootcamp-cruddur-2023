@@ -747,3 +747,75 @@ export default function MessageGroupNewItem(props) {
   );
 }
 ```
+* Check that everything works correctly:
+![image](https://user-images.githubusercontent.com/62669887/229010368-583adc75-b016-4ca0-a367-c254bda2bbca.png)
+## DynamoDB Stream
+* Create a new table on dynamoDB Prod:
+```sh
+./bin/ddb/schema-load prod
+```
+![image](https://user-images.githubusercontent.com/62669887/229011029-f968bd79-5857-477e-be8b-70d07f3ef94c.png)
+![image](https://user-images.githubusercontent.com/62669887/229011193-67760623-ad9e-4122-a71f-164a8609b296.png)
+* Turn on DynamoDB streams:
+![image](https://user-images.githubusercontent.com/62669887/229011415-52f611d2-2d58-40c5-8bc5-3806286eada7.png)
+* Create an AWS VPC Gateway Endpoint:
+![image](https://user-images.githubusercontent.com/62669887/229011839-81d6abde-9508-45fe-86c0-b9804f16aafe.png)
+* Follow as below image and click create endpoint after:
+
+![image](https://user-images.githubusercontent.com/62669887/229012057-1db167fc-f879-428c-bcaa-d21e0ea43f4d.png)
+* Create a lambda function as below and click create funciton:
+![image](https://user-images.githubusercontent.com/62669887/229012803-f6462558-7b33-493e-949f-27f4ede4527d.png)
+![image](https://user-images.githubusercontent.com/62669887/229012863-0f892855-3f34-4556-bf17-0941563f16cf.png)
+```py
+import json
+import boto3
+from boto3.dynamodb.conditions import Key, Attr
+
+dynamodb = boto3.resource(
+ 'dynamodb',
+ region_name='us-east-1',
+ endpoint_url="http://dynamodb.us-east-1.amazonaws.com"
+)
+
+def lambda_handler(event, context):
+  pk = event['Records'][0]['dynamodb']['Keys']['pk']['S']
+  sk = event['Records'][0]['dynamodb']['Keys']['sk']['S']
+  if pk.startswith('MSG#'):
+    group_uuid = pk.replace("MSG#","")
+    message = event['Records'][0]['dynamodb']['NewImage']['message']['S']
+    print("GRUP ===>",group_uuid,message)
+    
+    table_name = 'cruddur-messages'
+    index_name = 'message-group-sk-index'
+    table = dynamodb.Table(table_name)
+    data = table.query(
+      IndexName=index_name,
+      KeyConditionExpression=Key('message_group_uuid').eq(group_uuid)
+    )
+    print("RESP ===>",data['Items'])
+    
+    # recreate the message group rows with new SK value
+    for i in data['Items']:
+      delete_item = table.delete_item(Key={'pk': i['pk'], 'sk': i['sk']})
+      print("DELETE ===>",delete_item)
+      
+      response = table.put_item(
+        Item={
+          'pk': i['pk'],
+          'sk': sk,
+          'message_group_uuid':i['message_group_uuid'],
+          'message':message,
+          'user_display_name': i['user_display_name'],
+          'user_handle': i['user_handle'],
+          'user_uuid': i['user_uuid']
+        }
+      )
+      print("CREATE ===>",response)
+      ```
+* Add permisions to lambda function under configuration/permissions:
+![image](https://user-images.githubusercontent.com/62669887/229013680-1e28806d-8b4f-47e2-94a3-2ac87708a32a.png)
+* Add ```AWSLambdaInvocation-DynamoDB```permission.
+![image](https://user-images.githubusercontent.com/62669887/229013906-c358559d-f4a2-42aa-8b99-8e8c4309eb17.png)
+
+
+
