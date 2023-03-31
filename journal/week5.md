@@ -763,7 +763,7 @@ export default function MessageGroupNewItem(props) {
 * Follow as below image and click create endpoint after:
 
 ![image](https://user-images.githubusercontent.com/62669887/229012057-1db167fc-f879-428c-bcaa-d21e0ea43f4d.png)
-* Create a lambda function as below and click create funciton:
+* Create a lambda function as below and click create funciton (create a new file called ```cruddur-messaging-stream.py```under folder aws/lambdas, with the same code):
 ![image](https://user-images.githubusercontent.com/62669887/229012803-f6462558-7b33-493e-949f-27f4ede4527d.png)
 ![image](https://user-images.githubusercontent.com/62669887/229012863-0f892855-3f34-4556-bf17-0941563f16cf.png)
 ```py
@@ -773,11 +773,17 @@ from boto3.dynamodb.conditions import Key, Attr
 
 dynamodb = boto3.resource(
  'dynamodb',
- region_name='us-east-1',
- endpoint_url="http://dynamodb.us-east-1.amazonaws.com"
+ region_name='ca-central-1',
+ endpoint_url="http://dynamodb.ca-central-1.amazonaws.com"
 )
 
 def lambda_handler(event, context):
+  print('event-data',event)
+
+  eventName = event['Records'][0]['eventName']
+  if (eventName == 'REMOVE'):
+    print("skip REMOVE event")
+    return
   pk = event['Records'][0]['dynamodb']['Keys']['pk']['S']
   sk = event['Records'][0]['dynamodb']['Keys']['sk']['S']
   if pk.startswith('MSG#'):
@@ -816,6 +822,35 @@ def lambda_handler(event, context):
 ![image](https://user-images.githubusercontent.com/62669887/229013680-1e28806d-8b4f-47e2-94a3-2ac87708a32a.png)
 * Add ```AWSLambdaInvocation-DynamoDB```permission.
 ![image](https://user-images.githubusercontent.com/62669887/229013906-c358559d-f4a2-42aa-8b99-8e8c4309eb17.png)
-
+* Create a new permission called ```cruddur-messaging-stream-dynamodb```:
+![image](https://user-images.githubusercontent.com/62669887/229221888-3525e515-6aaa-4fa8-8827-f92fda0e36e1.png)
+![image](https://user-images.githubusercontent.com/62669887/229221947-abd8f544-e797-434c-ac44-a48b0da3b89e.png)
+![image](https://user-images.githubusercontent.com/62669887/229222023-e275bf07-e521-48e2-9ca2-6ff8c0c8e8cd.png)
+* Create a DynamoDB trigger:
+![image](https://user-images.githubusercontent.com/62669887/229216564-9e7f16f7-475d-4e15-9fc5-65f22a012355.png)
+* Create a new folder called policies under aws/json, and create a file called ```cruddur-message-stream-policy```with the following:
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": [
+                "dynamodb:PutItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:Query"
+            ],
+            "Resource": [
+                "arn:aws:dynamodb:us-east-1:487961190446:table/cruddur-messages/index/message-group-sk-index",
+                "arn:aws:dynamodb:us-east-1:487961190446:table/cruddur-messages"
+            ]
+        }
+    ]
+}
+```
+* Check that everything works correctly
+![image](https://user-images.githubusercontent.com/62669887/229225829-b4247df2-6754-4d2b-8b96-3eff0a025611.png)
+![image](https://user-images.githubusercontent.com/62669887/229226055-427d9bf9-0ad0-4aae-a6d5-8377e208a7d4.png)
 
 
