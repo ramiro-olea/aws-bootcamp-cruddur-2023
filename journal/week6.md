@@ -259,7 +259,37 @@ aws iam attach-role-policy --policy-arn arn:aws:iam::aws:policy/AWSXRayDaemonWri
     ]
   }
 ```
-* Put the follosing command on CLI:
+* Put the following command on CLI:
 ```sh
 aws ecs register-task-definition --cli-input-json file://aws/task-definitions/backend-flask.json
 ```
+### Defaults
+```sh
+export DEFAULT_VPC_ID=$(aws ec2 describe-vpcs \
+--filters "Name=isDefault, Values=true" \
+--query "Vpcs[0].VpcId" \
+--output text)
+echo $DEFAULT_VPC_ID
+```
+### Create Security Group
+```sh
+export CRUD_SERVICE_SG=$(aws ec2 create-security-group \
+  --group-name "crud-srv-sg" \
+  --description "Security group for Cruddur services on ECS" \
+  --vpc-id $DEFAULT_VPC_ID \
+  --query "GroupId" --output text)
+echo $CRUD_SERVICE_SG
+```
+* Open port 80 on the SG:
+```sh
+aws ec2 authorize-security-group-ingress \
+  --group-id $CRUD_SERVICE_SG \
+  --protocol tcp \
+  --port 80 \
+  --cidr 0.0.0.0/0
+  ```
+### Create a Service on ECS
+![image](https://user-images.githubusercontent.com/62669887/229665407-47edf22f-f636-403a-bb67-776db8ebc48a.png)
+![image](https://user-images.githubusercontent.com/62669887/229665458-3edeab8a-a773-445b-ad4f-9d88ffd17ce1.png)
+![image](https://user-images.githubusercontent.com/62669887/229665548-1bdf5460-485c-4716-b6e7-e15edf18d49a.png)
+![image](https://user-images.githubusercontent.com/62669887/229665576-5d0f32a0-5a3f-4521-92f3-b1deb0bf5e0d.png)
