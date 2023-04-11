@@ -293,3 +293,68 @@ aws ec2 authorize-security-group-ingress \
 ![image](https://user-images.githubusercontent.com/62669887/229665458-3edeab8a-a773-445b-ad4f-9d88ffd17ce1.png)
 ![image](https://user-images.githubusercontent.com/62669887/229665548-1bdf5460-485c-4716-b6e7-e15edf18d49a.png)
 ![image](https://user-images.githubusercontent.com/62669887/229665576-5d0f32a0-5a3f-4521-92f3-b1deb0bf5e0d.png)
+
+### Create a Service on ECS via CLI
+* Create a new file under aws/json called ```service-backend-flask.json```:
+```json
+{
+    "cluster": "cruddur",
+    "launchType": "FARGATE",
+    "desiredCount": 1,
+    "enableECSManagedTags": true,
+    "enableExecuteCommand": true,
+    "networkConfiguration": {
+      "awsvpcConfiguration": {
+        "assignPublicIp": "ENABLED",
+        "securityGroups": [
+          "sg-05dc5fc86135a0c39"
+        ],
+        "subnets": [
+          "subnet-02664f9ffcec88e72",
+          "subnet-0de50186cc6503076",
+          "subnet-070398e40d5f5b6eb",
+          "subnet-0056c77b816ad20c8",
+          "subnet-054142b2b297f90c2",
+          "subnet-0bc9031035f356c0d"          
+        ]
+    }         
+},
+        "propagateTags": "SERVICE",
+        "serviceName": "backend-flask",
+        "taskDefinition": "backend-flask"
+      }   
+```
+* On CLI run:
+```sh
+aws ecs create-service --cli-input-json file://aws/json/service-backend-flask.json
+```
+* In order to access the container, run this commnad on CLI:
+```sh
+aws ecs execute-command  \
+--region $AWS_DEFAULT_REGION \
+--cluster cruddur \
+--task 4a4bfbb086d84b56a867785caa571f13 \
+--container backend-flask \
+--command "/bin/bash" \
+--interactive
+```
+
+
+![image](https://user-images.githubusercontent.com/62669887/231029369-2aaf9b79-a549-4d6c-aa98-dcacd82a947e.png)
+
+### Create Application Load Balancer
+* Create a new security group:
+![image](https://user-images.githubusercontent.com/62669887/231031027-09a715ef-3a1e-464a-826c-1d58aa11554f.png)
+* Creata target group:
+![image](https://user-images.githubusercontent.com/62669887/231031473-91f1ee1b-5be3-4d51-9d3c-197c9d0d44b4.png)
+![image](https://user-images.githubusercontent.com/62669887/231031525-b5d55b61-7c2e-4b6b-8f08-799b69b3c4da.png)
+![image](https://user-images.githubusercontent.com/62669887/231031555-87bcc715-f9f2-4195-b2db-b1f5ab6582e4.png)
+* CLick next, and rest leave as default, and click create. 
+* Create target group for frontend:
+![image](https://user-images.githubusercontent.com/62669887/231031901-20b8d125-75c6-4964-b691-412eb49101ce.png)
+* Create the load balancer:
+![image](https://user-images.githubusercontent.com/62669887/231032018-36b2ff24-6504-4747-9da5-2daf94aa3e95.png)
+![image](https://user-images.githubusercontent.com/62669887/231032070-f342798a-e94b-4491-95f1-ff17c65f98f4.png)
+![image](https://user-images.githubusercontent.com/62669887/231032103-9af60e55-83a0-43a3-884a-52c88fcdd68c.png)
+![image](https://user-images.githubusercontent.com/62669887/231032129-21ea3cbb-f930-46a8-87f3-7b7ebc9b436e.png)
+![image](https://user-images.githubusercontent.com/62669887/231032163-076a0d1e-553a-4d2e-9bdf-77624b0af4d5.png)
