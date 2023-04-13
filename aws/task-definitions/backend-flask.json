@@ -44,8 +44,8 @@
           {"name": "OTEL_EXPORTER_OTLP_ENDPOINT", "value": "https://api.honeycomb.io"},
           {"name": "AWS_COGNITO_USER_POOL_ID", "value": "us-east-1_aEdWI8NTd"},
           {"name": "AWS_COGNITO_USER_POOL_CLIENT_ID", "value": "3l23shkdgssljeg4de33ij3cph"},
-          {"name": "FRONTEND_URL", "value": "ramirotech.com"},
-          {"name": "BACKEND_URL", "value": "api.ramirotech.com"},
+          {"name": "FRONTEND_URL", "value": "https://ramirotech.com"},
+          {"name": "BACKEND_URL", "value": "https://api.ramirotech.com"},
           {"name": "AWS_DEFAULT_REGION", "value": "us-east-1"}
         ],
         "secrets": [
