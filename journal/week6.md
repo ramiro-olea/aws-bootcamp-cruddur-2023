@@ -303,6 +303,13 @@ aws ec2 authorize-security-group-ingress \
     "desiredCount": 1,
     "enableECSManagedTags": true,
     "enableExecuteCommand": true,
+    "loadBalancers": [
+      {
+          "targetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:487961190446:targetgroup/cruddur-backend-flask-tg/813e4ccf1c0c59da",
+          "containerName": "backend-flask",
+          "containerPort": 4567
+      }
+    ],
     "networkConfiguration": {
       "awsvpcConfiguration": {
         "assignPublicIp": "ENABLED",
@@ -310,19 +317,27 @@ aws ec2 authorize-security-group-ingress \
           "sg-05dc5fc86135a0c39"
         ],
         "subnets": [
-          "subnet-02664f9ffcec88e72",
           "subnet-0de50186cc6503076",
-          "subnet-070398e40d5f5b6eb",
           "subnet-0056c77b816ad20c8",
-          "subnet-054142b2b297f90c2",
-          "subnet-0bc9031035f356c0d"          
+          "subnet-054142b2b297f90c2"             
         ]
-    }         
-},
-        "propagateTags": "SERVICE",
-        "serviceName": "backend-flask",
-        "taskDefinition": "backend-flask"
-      }   
+    }
+  },
+  "propagateTags": "SERVICE",
+  "serviceName": "backend-flask",
+  "taskDefinition": "backend-flask",
+  "serviceConnectConfiguration": {
+    "enabled": true,
+    "namespace": "cruddur",
+    "services": [
+      {
+        "portName": "backend-flask",
+        "discoveryName": "backend-flask",
+        "clientAliases": [{"port": 4567}]
+      }
+    ]
+  }
+} 
 ```
 * On CLI run:
 ```sh
@@ -345,7 +360,7 @@ aws ecs execute-command  \
 ### Create Application Load Balancer
 * Create a new security group:
 ![image](https://user-images.githubusercontent.com/62669887/231031027-09a715ef-3a1e-464a-826c-1d58aa11554f.png)
-* Creata target group:
+* Creata target group for backend-flask:
 ![image](https://user-images.githubusercontent.com/62669887/231031473-91f1ee1b-5be3-4d51-9d3c-197c9d0d44b4.png)
 ![image](https://user-images.githubusercontent.com/62669887/231031525-b5d55b61-7c2e-4b6b-8f08-799b69b3c4da.png)
 ![image](https://user-images.githubusercontent.com/62669887/231031555-87bcc715-f9f2-4195-b2db-b1f5ab6582e4.png)
@@ -358,3 +373,204 @@ aws ecs execute-command  \
 ![image](https://user-images.githubusercontent.com/62669887/231032103-9af60e55-83a0-43a3-884a-52c88fcdd68c.png)
 ![image](https://user-images.githubusercontent.com/62669887/231032129-21ea3cbb-f930-46a8-87f3-7b7ebc9b436e.png)
 ![image](https://user-images.githubusercontent.com/62669887/231032163-076a0d1e-553a-4d2e-9bdf-77624b0af4d5.png)
+* Create service with ```service-backend-flask.json```, and after creation check that health check works correctly:
+```sh
+aws ecs create-service --cli-input-json file://aws/json/service-backend-flask.json
+```
+![image](https://user-images.githubusercontent.com/62669887/231604871-8f1432b3-f542-428c-a67c-12676a92e2fc.png)
+
+### Creating Front-End Container
+* Create a new file under frontend-react-js folder called ```Dockerfile.prod```:
+```sh
+# Base Image ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+FROM node:16.18 AS build
+
+ARG REACT_APP_BACKEND_URL
+ARG REACT_APP_AWS_PROJECT_REGION
+ARG REACT_APP_AWS_COGNITO_REGION
+ARG REACT_APP_AWS_USER_POOLS_ID
+ARG REACT_APP_CLIENT_ID
+
+ENV REACT_APP_BACKEND_URL=$REACT_APP_BACKEND_URL
+ENV REACT_APP_AWS_PROJECT_REGION=$REACT_APP_AWS_PROJECT_REGION
+ENV REACT_APP_AWS_COGNITO_REGION=$REACT_APP_AWS_COGNITO_REGION
+ENV REACT_APP_AWS_USER_POOLS_ID=$REACT_APP_AWS_USER_POOLS_ID
+ENV REACT_APP_CLIENT_ID=$REACT_APP_CLIENT_ID
+
+COPY . ./frontend-react-js
+WORKDIR /frontend-react-js
+RUN npm install
+RUN npm run build
+
+# New Base Image ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+FROM nginx:1.23.3-alpine
+
+# --from build is coming from the Base Image
+COPY --from=build /frontend-react-js/build /usr/share/nginx/html
+COPY --from=build /frontend-react-js/nginx.conf /etc/nginx/nginx.conf
+
+EXPOSE 3000
+```
+* Create a new file under frontend-react-js folder called ```nginx.conf```:
+```sh
+# Set the worker processes
+worker_processes 1;
+
+# Set the events module
+events {
+  worker_connections 1024;
+}
+
+# Set the http module
+http {
+  # Set the MIME types
+  include /etc/nginx/mime.types;
+  default_type application/octet-stream;
+
+  # Set the log format
+  log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for"';
+
+  # Set the access log
+  access_log  /var/log/nginx/access.log main;
+
+  # Set the error log
+  error_log /var/log/nginx/error.log;
+
+  # Set the server section
+  server {
+    # Set the listen port
+    listen 3000;
+
+    # Set the root directory for the app
+    root /usr/share/nginx/html;
+
+    # Set the default file to serve
+    index index.html;
+
+    location / {
+        # First attempt to serve request as file, then
+        # as directory, then fall back to redirecting to index.html
+        try_files $uri $uri/ $uri.html /index.html;
+    }
+
+    # Set the error page
+    error_page  404 /404.html;
+    location = /404.html {
+      internal;
+    }
+
+    # Set the error page for 500 errors
+    error_page  500 502 503 504  /50x.html;
+    location = /50x.html {
+      internal;
+    }
+  }
+}
+```
+* Under aws/task-definitions folder create a new file called ```frontend-react-js.json``` and add:
+```json
+{
+  "family": "frontend-react-js",
+  "executionRoleArn": "arn:aws:iam::487961190446:role/CruddurServiceExecutionRole",
+  "taskRoleArn": "arn:aws:iam::487961190446:role/CruddurTaskRole",
+  "networkMode": "awsvpc",
+  "cpu": "256",
+  "memory": "512",
+  "requiresCompatibilities": [ 
+    "FARGATE" 
+  ],
+  "containerDefinitions": [
+    {
+      "name": "frontend-react-js",
+      "image": "487961190446.dkr.ecr.us-east-1.amazonaws.com/frontend-react-js",
+      "essential": true,
+      "portMappings": [
+        {
+          "name": "frontend-react-js",
+          "containerPort": 3000,
+          "protocol": "tcp", 
+          "appProtocol": "http"
+        }
+      ],
+
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+            "awslogs-group": "cruddur",
+            "awslogs-region": "us-east-1",
+            "awslogs-stream-prefix": "frontend-react-js"
+        }
+      }
+    }
+  ]
+}
+```
+* Build the image:
+```sh
+docker build \
+--build-arg REACT_APP_BACKEND_URL="http://cruddur-alb-224430687.us-east-1.elb.amazonaws.com":4567 \
+--build-arg REACT_APP_AWS_PROJECT_REGION="$AWS_DEFAULT_REGION" \
+--build-arg REACT_APP_AWS_COGNITO_REGION="$AWS_DEFAULT_REGION" \
+--build-arg REACT_APP_AWS_USER_POOLS_ID="us-east-1_aEdWI8NTd" \
+--build-arg REACT_APP_CLIENT_ID="3l23shkdgssljeg4de33ij3cph" \
+-t frontend-react-js \
+-f Dockerfile.prod \
+.
+```
+* Create repo:
+```sh
+aws ecr create-repository \
+  --repository-name frontend-react-js \
+  --image-tag-mutability MUTABLE
+```
+* Tag Image:
+```sh
+docker tag frontend-react-js:latest $ECR_FRONTEND_REACT_URL:latest
+```
+* Push image:
+```sh
+docker push $ECR_FRONTEND_REACT_URL:latest
+```
+* Register Task Definition (run on main folder):
+```sh
+aws ecs register-task-definition --cli-input-json file://aws/task-definitions/frontend-react-js.json
+```
+* Open port 3000 on Security Group for the service.
+* Create service:
+```sh
+aws ecs create-service --cli-input-json file://aws/json/service-frontend-react-js.json
+```
+![image](https://user-images.githubusercontent.com/62669887/231617339-9020309c-7c63-4d4c-b654-5ba60ba46bb7.png)
+
+## Create a hosted zone on Route53
+* Follow the image and click create hosted zone:
+![image](https://user-images.githubusercontent.com/62669887/231620795-bb7e6da8-2a28-44fc-8199-b544b00c4c3d.png)
+* Update AWS DNS domain names on your provider.
+* Create a new SSL certificate: 
+* Follow the steps in the image and click request:
+![image](https://user-images.githubusercontent.com/62669887/231621013-27a43694-32b5-48a8-9365-b7db613bbf56.png)
+* Click create records in Route 53, and the click again create records. You will have to wait some time in order to be successfull.
+* Once successfull you will see that the certificate has been requested:
+![image](https://user-images.githubusercontent.com/62669887/231621222-2cf17dd6-5804-4a37-ac89-08dd7105c2fe.png)
+* In load Balancer, add a new listener as per the image:
+![image](https://user-images.githubusercontent.com/62669887/231621950-5c8aa99a-a08a-451d-ae64-fece74401b80.png)
+* Add a second listener:
+![image](https://user-images.githubusercontent.com/62669887/231622373-b6331bef-8c1c-40fd-9ab3-7e1180e25d14.png)
+![image](https://user-images.githubusercontent.com/62669887/231622394-6c767e62-34a0-4eaa-8649-3b8c92489482.png)
+* Create a new rule for the listener on 443 so that api.ramirotech.com can be forwarded to the cruddur-backend-flask-tg:
+![image](https://user-images.githubusercontent.com/62669887/231623401-b14a3b04-27d5-40a8-a3ee-8a2ee24c119d.png)
+* Create a new record on Route53 to point the ALB:
+![image](https://user-images.githubusercontent.com/62669887/231623264-f5011063-1143-4c55-b035-4b179b64a9f3.png)
+* Create a second record for api:
+![image](https://user-images.githubusercontent.com/62669887/231623927-aaa93851-1f47-48de-94f8-3e7dd5fb7198.png)
+* Update files with ramirotech.com and api.ramirotech.com.
+* On ECS update both containers: backeend-flask and frontenn-react-js:
+![image](https://user-images.githubusercontent.com/62669887/231628984-b0eb7323-d101-4d93-9e16-faefee193905.png)
+![image](https://user-images.githubusercontent.com/62669887/231629176-16e08a7e-5617-492e-bdd9-22e3c3ec2efc.png)
+* Check that domain is working and showing data:
+![image](https://user-images.githubusercontent.com/62669887/231633655-45867c26-ef0b-463c-a597-65f1c3eb90ef.png)
+
+
+
