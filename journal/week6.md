@@ -611,4 +611,37 @@ CMD [ "python3", "-m" , "flask", "run", "--host=0.0.0.0", "--port=4567", "--no-d
 ```sh
 docker build -f Dockerfile.prod -t backend-flask-prod .
 ```
+## Create a new register bash script for backend and frontend
+* Under bin/backend folder create ```register``` (chmod the file):
+```sh
+#! /usr/bin/bash
+
+ABS_PATH=$(readlink -f "$0")
+FRONTEND_PATH=$(dirname $ABS_PATH)
+BIN_PATH=$(dirname $FRONTEND_PATH)
+PROJECT_PATH=$(dirname $BIN_PATH)
+TASK_DEF_PATH="$PROJECT_PATH/aws/task-definitions/backend-flask.json"
+
+echo $TASK_DEF_PATH
+
+aws ecs register-task-definition \
+--cli-input-json "file://$TASK_DEF_PATH"
+```
+* Under bin/frontend folder create ```register```(chmod the file):
+```sh
+#! /usr/bin/bash
+
+ABS_PATH=$(readlink -f "$0")
+BACKEND_PATH=$(dirname $ABS_PATH)
+BIN_PATH=$(dirname $BACKEND_PATH)
+PROJECT_PATH=$(dirname $BIN_PATH)
+TASK_DEF_PATH="$PROJECT_PATH/aws/task-definitions/frontend-react-js.json"
+
+echo $TASK_DEF_PATH
+
+aws ecs register-task-definition \
+--cli-input-json "file://$TASK_DEF_PATH"
+```
+
+
  
