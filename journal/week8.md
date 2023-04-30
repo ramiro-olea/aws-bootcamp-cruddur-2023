@@ -64,3 +64,11 @@ export class ThumbingServerlessCdkStack extends cdk.Stack {
 
 }
 ```
+* On `gitpod.yaml` add the following:
+```sh
+  - name: cdk
+    before: |
+      npm install aws-cdk -g  
+      cd thumbing-serverless-cdk
+      npm i
+```
