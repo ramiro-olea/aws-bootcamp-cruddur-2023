@@ -205,8 +205,8 @@ cdk bootstrap
 cdk deploy
 ```
 * Create a new folder under bin called `serverless` and create files (remember to chmod):
-```build```
-`sh
+`build`
+```sh
 #! /usr/bin/bash
 
 ABS_PATH=$(readlink -f "$0")
@@ -222,7 +222,7 @@ rm -rf node_modules/sharp
 SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm install --arch=x64 --platform=linux --libc=glibc sharp
 ```
 ## Create S3 Event Notification to Lambda
-* Add the following code on `thumbing-serverless-cdk-stack.ts`
+* Add the following code on `thumbing-serverless-cdk-stack.ts`:
 ```sh
 this.createS3NotifyToLambda(folderInput,laombda,bucket)
 
