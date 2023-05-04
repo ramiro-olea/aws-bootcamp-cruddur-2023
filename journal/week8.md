@@ -419,4 +419,41 @@ export class ThumbingServerlessCdkStack extends cdk.Stack {
 ![image](https://user-images.githubusercontent.com/62669887/236084531-7ba26901-6bba-4816-be44-a0ffcccb04a5.png)
 ![image](https://user-images.githubusercontent.com/62669887/236084563-fec9bdd1-05c6-4384-bd85-2e148d72c8f8.png)
 
+## Amazon CloudFront (CDN)
+* Go to AWS console, and go to CloudFront.
+* Click create CloudFront Distribution:
+![image](https://user-images.githubusercontent.com/62669887/236348205-784202f1-938f-49a5-a284-b92c7d89b474.png)
+* Fill as follows and click create:
+![image](https://user-images.githubusercontent.com/62669887/236348326-202f606b-5ef7-4b52-80af-799159de9e78.png)
+* In order to get the origin access control, click create control setting, and fill as follows:
+![image](https://user-images.githubusercontent.com/62669887/236348115-567397df-ba01-4d99-bc29-3ac72cf7a385.png)
+![image](https://user-images.githubusercontent.com/62669887/236348894-535f3b7b-164e-4918-af6b-7f4998c01da0.png)
+![image](https://user-images.githubusercontent.com/62669887/236349005-8341154e-5e44-4de9-931e-31f6449f4758.png)
+![image](https://user-images.githubusercontent.com/62669887/236349058-bbcd3893-1223-485e-af19-344b5b46599e.png)
+![image](https://user-images.githubusercontent.com/62669887/236349093-e7cecaa7-1480-49e1-8e55-69525b612ce9.png)
+* On route 53, on the existing hosted zone, add a new record and fill as follows:
+![image](https://user-images.githubusercontent.com/62669887/236349404-f29a0b2f-5750-4185-b74f-d7d8b2af1fa8.png)
+* Add the following access policy to the S3 bucket:
+```json
+{
+        "Version": "2008-10-17",
+        "Id": "PolicyForCloudFrontPrivateContent",
+        "Statement": [
+            {
+                "Sid": "AllowCloudFrontServicePrincipal",
+                "Effect": "Allow",
+                "Principal": {
+                    "Service": "cloudfront.amazonaws.com"
+                },
+                "Action": "s3:GetObject",
+                "Resource": "arn:aws:s3:::assets.ramirotech.com/*",
+                "Condition": {
+                    "StringEquals": {
+                      "AWS:SourceArn": "arn:aws:cloudfront::487961190446:distribution/E3AQ8H91OQZUKY"
+                    }
+                }
+            }
+        ]
+      }
+```
 
