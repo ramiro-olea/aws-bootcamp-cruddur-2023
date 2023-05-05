@@ -456,4 +456,15 @@ export class ThumbingServerlessCdkStack extends cdk.Stack {
         ]
       }
 ```
+* update `.env` file and add:
+```sh
+UPLOADS_BUCKET_NAME="uploads.ramirotech.com"
+ASSETS_BUCKET_NAME="assets.ramirotech.com"
+```
+* Edit `thumbing-serverless-cdk-stack.ts`, `.env`, `clear` and `upload` files with the updates asked.
+* Check that everything works fine and as expected (having different buckets for the uploads and the processed images):
+![image](https://user-images.githubusercontent.com/62669887/236371131-b3d6fe84-667e-473f-9ec0-85ae676ce6f6.png)
+![image](https://user-images.githubusercontent.com/62669887/236371225-122e5136-dd65-4a0a-898c-82d08a65b5ad.png)
+![image](https://user-images.githubusercontent.com/62669887/236371263-47c82fe3-21be-4b25-9306-ee33bb4cf858.png)
+
 
