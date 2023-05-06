@@ -467,4 +467,194 @@ ASSETS_BUCKET_NAME="assets.ramirotech.com"
 ![image](https://user-images.githubusercontent.com/62669887/236371225-122e5136-dd65-4a0a-898c-82d08a65b5ad.png)
 ![image](https://user-images.githubusercontent.com/62669887/236371263-47c82fe3-21be-4b25-9306-ee33bb4cf858.png)
 
+* Create a new sript under bin called `bootstrap`:
+```sh
+#! /usr/bin/bash
+set -e # stop if it fails at any point
 
+CYAN='\033[1;36m'
+NO_COLOR='\033[0m'
+LABEL="bootstrap"
+printf "${CYAN}====== ${LABEL}${NO_COLOR}\n"
+
+ABS_PATH=$(readlink -f "$0")
+BIN_DIR=$(dirname $ABS_PATH)
+
+source "$BIN_DIR/db/setup"
+source "$BIN_DIR/ddb/schema-load"
+source "$BIN_DIR/ddb/seed"
+```
+* Create a new file under backend-flask/db/sql/users called `show.sql`:
+```sql
+SELECT 
+  (SELECT COALESCE(row_to_json(object_row),'{}'::json) FROM (
+    SELECT
+      users.uuid,
+      users.handle,
+      users.display_name,
+      (
+       SELECT 
+        count(true) 
+       FROM public.activities
+       WHERE
+        activities.user_uuid = users.uuid
+       ) as cruds_count
+  ) object_row) as profile,
+  (SELECT COALESCE(array_to_json(array_agg(row_to_json(array_row))),'[]'::json) FROM (
+    SELECT
+      activities.uuid,
+      users.display_name,
+      users.handle,
+      activities.message,
+      activities.created_at,
+      activities.expires_at
+    FROM public.activities
+    WHERE
+      activities.user_uuid = users.uuid
+    ORDER BY activities.created_at DESC 
+    LIMIT 40
+  ) array_row) as activities
+FROM public.users
+WHERE
+  users.handle = %(handle)s
+```
+* Under frontend-react-js/src/components create the following files: 
+`EditProfileButton.js`
+```js
+import './EditProfileButton.css';
+
+export default function EditProfileButton(props) {
+  const pop_profile_form = (event) => {
+    event.preventDefault();
+    props.setPopped(true);
+    return false;
+  }
+
+  return (
+    <button onClick={pop_profile_form} className='profile-edit-button' href="#">Edit Profile</button>
+  );
+}
+```
+`EditProfileButton.css`
+```css
+.profile-edit-button {
+    border: solid 1px rgba(255,255,255,0.5);
+    padding: 12px 20px;
+    font-size: 18px;
+    background: none;
+    border-radius: 999px;
+    color: rgba(255,255,255,0.8);
+    cursor: pointer;
+  }
+  
+  .profile-edit-button:hover {
+    background: rgba(255,255,255,0.3)
+  }
+```
+``ProfileHeading.js`
+```js
+import './ProfileHeading.css';
+import EditProfileButton from '../components/EditProfileButton';
+
+export default function ProfileHeading(props) {
+  const backgroundImage = 'url("https://assets.ramirotech.com/banners/banner.jpg")';
+  const styles = {
+    backgroundImage: backgroundImage,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+  };
+  return (
+  <div className='activity_feed_heading profile_heading'>
+    <div className='title'>{props.profile.display_name}</div>
+    <div className="cruds_count">{props.profile.cruds_count} Cruds</div>
+    <div class="banner" style={styles} >
+      <div className="avatar">
+        <img src="https://assets.ramirotech.com/avatars/data.jpg"></img>
+      </div>
+    </div>
+    <div class="info">
+      <div class='id'>
+        <div className="display_name">{props.profile.display_name}</div>
+        <div className="handle">@{props.profile.handle}</div>
+      </div>
+      <EditProfileButton setPopped={props.setPopped} />
+    </div>
+
+  </div>
+  );
+}
+```
+`ProfileHeading.css`
+```css
+.profile_heading {
+  padding-bottom: 0px;
+}
+.profile_heading .avatar {
+  position: absolute;
+  bottom:-74px;
+  left: 16px;
+}
+.profile_heading .avatar img {
+  width: 148px;
+  height: 148px;
+  border-radius: 999px;
+  border: solid 8px var(--fg);
+}
+
+.profile_heading .banner {
+  position: relative;
+  height: 200px;
+}
+
+.profile_heading .info {
+  display: flex;
+  flex-direction: row;
+  align-items: start;
+  padding: 16px;
+}
+
+.profile_heading .info .id {
+  padding-top: 70px;
+  flex-grow: 1;
+}
+
+.profile_heading .info .id .display_name {
+  font-size: 24px;
+  font-weight: bold;
+  color: rgb(255,255,255);
+}
+.profile_heading .info .id .handle {
+  font-size: 16px;
+  color: rgba(255,255,255,0.7);
+}
+
+.profile_heading .cruds_count {
+  color: rgba(255,255,255,0.7);
+}
+```
+* Update the following files, as per Andrew's instructions:
+  * Dockerfile
+  * user_activities.py
+  * ActivityFeed.js
+  * CrudButton.js
+  * HomeFeedPage.js
+  * NotificationsFeedPage.js
+  * UserFeedPage.js
+* Create a new file under bin folder called `prepare`:
+```sh
+#! /usr/bin/bash
+set -e # stop if it fails at any point
+
+CYAN='\033[1;36m'
+NO_COLOR='\033[0m'
+LABEL="bootstrap"
+printf "${CYAN}====== ${LABEL}${NO_COLOR}\n"
+
+ABS_PATH=$(readlink -f "$0")
+BIN_PATH=$(dirname $ABS_PATH)
+DB_PATH="$BIN_PATH/db"
+DDB_PATH="$BIN_PATH/ddb"
+echo "====$"
+echo $DB_PATH
+echo "====$"
+```
