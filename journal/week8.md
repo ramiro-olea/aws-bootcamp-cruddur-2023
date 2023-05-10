@@ -658,3 +658,541 @@ echo "====$"
 echo $DB_PATH
 echo "====$"
 ```
+* Create a new folder called generate under bin folder, and create a file called `migration`:
+```sh
+#!/usr/bin/env python3
+import time
+import os
+import sys
+
+if len(sys.argv) == 2:
+  name = sys.argv[1]
+else:
+  print("pass a filename: eg. ./bin/generate/migration add_bio_column")
+  exit(0)
+
+timestamp = str(time.time()).replace(".","")
+
+filename = f"{timestamp}_{name}.py"
+
+# covert undername name to title case eg. add_bio_column -> AddBioColumn
+klass = name.replace('_', ' ').title().replace(' ','')
+
+file_content = f"""
+from lib.db import db
+class {klass}Migration:
+  def migrate_sql():
+    data = \"\"\"
+    \"\"\"
+    return data
+  def rollback_sql():
+    data = \"\"\"
+    \"\"\"
+    return data
+  def migrate():
+    db.query_commit({klass}Migration.migrate_sql(),{{
+    }})
+  def rollback():
+    db.query_commit({klass}Migration.rollback_sql(),{{
+    }})
+migration = AddBioColumnMigration
+"""
+#remove leading and trailing new lines
+file_content = file_content.lstrip('\n').rstrip('\n')
+
+current_path = os.path.dirname(os.path.abspath(__file__))
+file_path = os.path.abspath(os.path.join(current_path, '..', '..','backend-flask','db','migrations',filename))
+print(file_path)
+
+with open(file_path, 'w') as f:
+  f.write(file_content
+```
+* Update `schema.sql` file with below and create a new file called `.keep` under backend-flask/db/migrations:
+```sql
+CREATE TABLE IF NOT EXISTS public.schema_information (
+  id integer UNIQUE,
+  last_successful_run text
+);
+INSERT INTO public.schema_information (id, last_successful_run)
+VALUES(1, '0')
+ON CONFLICT (id) DO NOTHING;
+```
+* Create a new file called `update.sql` under backend-flask/db:
+```sql
+UPDATE public.users 
+SET 
+  bio = %(bio)s,
+  display_name= %(display_name)s
+WHERE 
+  users.cognito_user_id = %(cognito_user_id)s
+RETURNING handle;
+```
+* Update `show.sql` as per Andrew's guidance.
+* Create a new file called `update_profile.py` under backend-flask/services:
+```py
+from lib.db import db
+
+class UpdateProfile:
+  def run(cognito_user_id,bio,display_name):
+    model = {
+      'errors': None,
+      'data': None
+    }
+
+    if display_name == None or len(display_name) < 1:
+      model['errors'] = ['display_name_blank']
+
+    if model['errors']:
+      model['data'] = {
+        'bio': bio,
+        'display_name': display_name
+      }
+    else:
+      handle = UpdateProfile.update_profile(bio,display_name,cognito_user_id)
+      data = UpdateProfile.query_users_short(handle)
+      model['data'] = data
+    return model
+
+  def update_profile(bio,display_name,cognito_user_id):
+    if bio == None:    
+      bio = ''
+
+    sql = db.template('users','update')
+    handle = db.query_commit(sql,{
+      'cognito_user_id': cognito_user_id,
+      'bio': bio,
+      'display_name': display_name
+    })
+  def query_users_short(handle):
+    sql = db.template('users','short')
+    data = db.query_object_json(sql,{
+      'handle': handle
+    })
+    return data
+ ```
+ * Create a new files under bin/db:
+`migrate`
+ ```sh
+ #!/usr/bin/env python3
+
+import os
+import sys
+import glob
+import re
+import time
+import importlib
+
+current_path = os.path.dirname(os.path.abspath(__file__))
+parent_path = os.path.abspath(os.path.join(current_path, '..', '..','backend-flask'))
+sys.path.append(parent_path)
+from lib.db import db
+
+def get_last_successful_run():
+  sql = """
+    SELECT last_successful_run
+    FROM public.schema_information
+    LIMIT 1
+  """
+  return int(db.query_value(sql,{},verbose=False))
+
+def set_last_successful_run(value):
+  sql = """
+  UPDATE schema_information
+  SET last_successful_run = %(last_successful_run)s
+  WHERE id = 1
+  """
+  db.query_commit(sql,{'last_successful_run': value},verbose=False)
+  return value
+
+last_successful_run = get_last_successful_run()
+
+migrations_path = os.path.abspath(os.path.join(current_path, '..', '..','backend-flask','db','migrations'))
+sys.path.append(migrations_path)
+migration_files = glob.glob(f"{migrations_path}/*")
+
+
+for migration_file in migration_files:
+  filename = os.path.basename(migration_file)
+  module_name = os.path.splitext(filename)[0]
+  match = re.match(r'^\d+', filename)
+  if match:
+    file_time = int(match.group())
+    if last_successful_run <= file_time:
+      mod = importlib.import_module(module_name)
+      print('=== running migration: ',module_name)
+      mod.migration.migrate()
+      timestamp = str(time.time()).replace(".","")
+      last_successful_run = set_last_successful_run(timestamp)
+```
+`rollback`
+ ```sh
+ #!/usr/bin/env python3
+
+import os
+import sys
+import glob
+import re
+import time
+import importlib
+
+current_path = os.path.dirname(os.path.abspath(__file__))
+parent_path = os.path.abspath(os.path.join(current_path, '..', '..','backend-flask'))
+sys.path.append(parent_path)
+from lib.db import db
+
+def get_last_successful_run():
+  sql = """
+    SELECT last_successful_run
+    FROM public.schema_information
+    LIMIT 1
+  """
+  return int(db.query_value(sql,{},verbose=False))
+
+def set_last_successful_run(value):
+  sql = """
+  UPDATE schema_information
+  SET last_successful_run = %(last_successful_run)s
+  WHERE id = 1
+  """
+  db.query_commit(sql,{'last_successful_run': value})
+  return value
+
+last_successful_run = get_last_successful_run()
+
+migrations_path = os.path.abspath(os.path.join(current_path, '..', '..','backend-flask','db','migrations'))
+sys.path.append(migrations_path)
+migration_files = glob.glob(f"{migrations_path}/*")
+
+
+last_migration_file = None
+for migration_file in migration_files:
+  if last_migration_file == None:
+    filename = os.path.basename(migration_file)
+    module_name = os.path.splitext(filename)[0]
+    match = re.match(r'^\d+', filename)
+    if match:
+      file_time = int(match.group())
+      print("==<><>")
+      print(last_successful_run, file_time)
+      print(last_successful_run > file_time)
+      if last_successful_run > file_time:
+        last_migration_file = module_name
+        mod = importlib.import_module(module_name)
+        print('=== rolling back: ',module_name)
+        mod.migration.rollback()
+        set_last_successful_run(file_time)
+```
+* Create following files under frontend-react-js/src/components folder:
+`Popup.css`
+```css
+.popup_form_wrap {
+    z-index: 100;
+    position: fixed;
+    height: 100%;
+    width: 100%;
+    top: 0;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    padding-top: 48px;
+    background: rgba(255,255,255,0.1)
+  }
+
+  .popup_form {
+    background: #000;
+    box-shadow: 0px 0px 6px rgba(190, 9, 190, 0.6);
+    border-radius: 16px;
+    width: 600px;
+  }
+
+  .popup_form .popup_heading {
+    display: flex;
+    flex-direction: row;
+    border-bottom: solid 1px rgba(255,255,255,0.4);
+    padding: 16px;
+  }
+
+  .popup_form .popup_heading .popup_title{
+    flex-grow: 1;
+    color: rgb(255,255,255);
+    font-size: 18px;
+
+  }
+```
+`ProfileForm.css`
+```css
+form.profile_form input[type='text'],
+form.profile_form textarea {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 16px;
+  border-radius: 4px;
+  border: none;
+  outline: none;
+  display: block;
+  outline: none;
+  resize: none;
+  width: 100%;
+  padding: 16px;
+  border: solid 1px var(--field-border);
+  background: var(--field-bg);
+  color: #fff;
+}
+
+.profile_popup .popup_content {
+  padding: 16px;
+}
+
+form.profile_form .field.display_name {
+  margin-bottom: 24px;
+}
+
+form.profile_form label {
+  color: rgba(255,255,255,0.8);
+  padding-bottom: 4px;
+  display: block;
+}
+
+form.profile_form textarea {
+  height: 140px;
+}
+
+form.profile_form input[type='text']:hover,
+form.profile_form textarea:focus {
+  border: solid 1px var(--field-border-focus)
+}
+
+.profile_popup button[type='submit'] {
+  font-weight: 800;
+  outline: none;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 20px;
+  font-size: 16px;
+  background: rgba(149,0,255,1);
+  color: #fff;
+}
+```
+`ProfileForm.js`
+```js
+import './ProfileForm.css';
+import React from "react";
+import process from 'process';
+import {getAccessToken} from 'lib/CheckAuth';
+
+export default function ProfileForm(props) {
+  const [bio, setBio] = React.useState(0);
+  const [displayName, setDisplayName] = React.useState(0);
+
+  React.useEffect(()=>{
+    console.log('useEffects',props)
+    setBio(props.profile.bio);
+    setDisplayName(props.profile.display_name);
+  }, [props.profile])
+
+  const onsubmit = async (event) => {
+    event.preventDefault();
+    try {
+      const backend_url = `${process.env.REACT_APP_BACKEND_URL}/api/profile/update`
+      await getAccessToken()
+      const access_token = localStorage.getItem("access_token")
+      const res = await fetch(backend_url, {
+        method: "POST",
+        headers: {
+          'Authorization': `Bearer ${access_token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          bio: bio,
+          display_name: displayName
+        }),
+      });
+      let data = await res.json();
+      if (res.status === 200) {
+        setBio(null)
+        setDisplayName(null)
+        props.setPopped(false)
+      } else {
+        console.log(res)
+      }
+    } catch (err) {
+      console.log(err);
+    }
+  }
+
+  const bio_onchange = (event) => {
+    setBio(event.target.value);
+  }
+
+  const display_name_onchange = (event) => {
+    setDisplayName(event.target.value);
+  }
+
+  const close = (event)=> {
+    if (event.target.classList.contains("profile_popup")) {
+      props.setPopped(false)
+    }
+  }
+
+  if (props.popped === true) {
+    return (
+      <div className="popup_form_wrap profile_popup" onClick={close}>
+        <form 
+          className='profile_form popup_form'
+          onSubmit={onsubmit}
+        >
+          <div class="popup_heading">
+            <div class="popup_title">Edit Profile</div>
+            <div className='submit'>
+              <button type='submit'>Save</button>
+            </div>
+          </div>
+          <div className="popup_content">
+            <div className="field display_name">
+              <label>Display Name</label>
+              <input
+                type="text"
+                placeholder="Display Name"
+                value={displayName}
+                onChange={display_name_onchange} 
+              />
+            </div>
+            <div className="field bio">
+              <label>Bio</label>
+              <textarea
+                placeholder="Bio"
+                value={bio}
+                onChange={bio_onchange} 
+              />
+            </div>
+          </div>
+        </form>
+      </div>
+    );
+  }
+}
+```
+* As per Andrew's guidance, update:
+ - `backend-flask.env.erb`
+ - `App.js`
+ - `ProfileHeading.css`
+ - `ProfileHeading.js`
+ - `ReplyForm.css`
+ - `UserFeedPage.js`
+
+## Create Lambda function for API
+* Follow the images (rest leave as default):
+![image](https://github.com/ramiro-olea/aws-bootcamp-cruddur-2023/assets/62669887/c4a4c00b-ec20-42f2-8fcb-67018af82463)
+* Create a new folder called cruddur-upload-avatar under aws/lambdas and create a fille called `function.rb`:
+```rb
+```
+* On the cli type the following under /aws/lambdas/cruddur-upload-avatar:
+```sh
+bundle init
+```
+```sh
+bundle install
+```
+* Give permissions to S3 lambda:
+![image](https://github.com/ramiro-olea/aws-bootcamp-cruddur-2023/assets/62669887/cf72caf1-1387-4c54-b49a-141823ef677a)
+* Copy the json code to a new file named `s3-upload-avatar-presigned-url-policy`, under aws/policies:
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": "s3:PutObject",
+            "Resource": "arn:aws:s3:::ramirotech-uploaded-avatars/*"
+        }
+    ]
+}
+```
+* Change the below parameters:
+![image](https://github.com/ramiro-olea/aws-bootcamp-cruddur-2023/assets/62669887/81302fdc-c4de-422e-8b94-ed942d924a20)
+* Change the lambda file name and add the code:
+```rb
+require 'aws-sdk-s3'
+require 'json'
+
+def handler(event:, context:)
+  puts event
+  s3 = Aws::S3::Resource.new
+  bucket_name = ENV["UPLOADS_BUCKET_NAME"]
+  object_key = 'mock.jpg'
+
+  obj = s3.bucket(bucket_name).object(object_key)
+  url = obj.presigned_url(:put, expires_in: 60 * 5)
+  url # this is the data that will be returned
+  body = {url: url}.to_json
+  { statusCode: 200, body: body }
+end
+```
+![image](https://github.com/ramiro-olea/aws-bootcamp-cruddur-2023/assets/62669887/af0e9b7a-26a8-450c-b234-7730892cf08f)
+* Test taht everything works ok:
+![image](https://github.com/ramiro-olea/aws-bootcamp-cruddur-2023/assets/62669887/98ceeaee-7cb7-44e6-99cc-5955dbc164ef)
+* Create a new folder calles lambda-authorizer under aws/lambdas and create a file called `index.js`:
+```js
+"use strict";
+const { CognitoJwtVerifier } = require("aws-jwt-verify");
+//const { assertStringEquals } = require("aws-jwt-verify/assert");
+
+const jwtVerifier = CognitoJwtVerifier.create({
+  userPoolId: process.env.USER_POOL_ID,
+  tokenUse: "access",
+  clientId: process.env.CLIENT_ID//,
+  //customJwtCheck: ({ payload }) => {
+  //  assertStringEquals("e-mail", payload["email"], process.env.USER_EMAIL);
+  //},
+});
+
+exports.handler = async (event) => {
+  console.log("request:", JSON.stringify(event, undefined, 2));
+
+  const jwt = event.headers.authorization;
+  try {
+    const payload = await jwtVerifier.verify(jwt);
+    console.log("Access allowed. JWT payload:", payload);
+  } catch (err) {
+    console.error("Access forbidden:", err);
+    return {
+      isAuthorized: false,
+    };
+  }
+  return {
+    isAuthorized: true,
+  };
+};
+```
+* Run the following on cli under aws/lambdas/lambda-authorizer:
+```sh
+npm install aws-jwt-verify --save
+```
+* Download the four files and/or folders and zip them together on a file called `lambda-authorizer`:
+![image](https://github.com/ramiro-olea/aws-bootcamp-cruddur-2023/assets/62669887/9d356cbe-a90e-4477-a2d3-a0c0c81eb17b)
+* Create a new lambda function called CruddurApiGatewayLambdaAuthorizer`:
+![image](https://github.com/ramiro-olea/aws-bootcamp-cruddur-2023/assets/62669887/ae624c36-1a63-4a37-8269-b8a5656f319a)
+* Rest leave as default.
+* Upload the zip file to the lambda function:
+![image](https://github.com/ramiro-olea/aws-bootcamp-cruddur-2023/assets/62669887/2c5891a4-cd78-401b-95cf-6e46c779142e)
+![image](https://github.com/ramiro-olea/aws-bootcamp-cruddur-2023/assets/62669887/5c98cb01-a83a-471a-b8ec-fff3b0a81334)
+* Create an HTTP APIGateway:
+![image](https://github.com/ramiro-olea/aws-bootcamp-cruddur-2023/assets/62669887/a2861f71-e5db-4da1-9806-2a02ca76a837)
+![image](https://github.com/ramiro-olea/aws-bootcamp-cruddur-2023/assets/62669887/95765e5f-073e-4bb2-b23a-581f331a0cb1)
+![image](https://github.com/ramiro-olea/aws-bootcamp-cruddur-2023/assets/62669887/50992223-21fa-4df7-99cb-57271407f2d3)
+* Click on create and follow the images:
+![image](https://github.com/ramiro-olea/aws-bootcamp-cruddur-2023/assets/62669887/cb37af04-e1bb-4863-8f94-80bf1cf1e583)
+![image](https://github.com/ramiro-olea/aws-bootcamp-cruddur-2023/assets/62669887/cb7cad94-0e56-4793-a68a-bdc3a274329b)
+![image](https://github.com/ramiro-olea/aws-bootcamp-cruddur-2023/assets/62669887/0ed2745c-8bcf-4265-8a40-b87a7f3916f3)
+* Click on attach authorizer:
+![image](https://github.com/ramiro-olea/aws-bootcamp-cruddur-2023/assets/62669887/33fc6d99-3a46-47d9-b401-77b6583db9a0)
+* With that you can get the invoke URL:
+![image](https://github.com/ramiro-olea/aws-bootcamp-cruddur-2023/assets/62669887/2a93869a-94cb-45fb-bebf-7b88223d2ead)
+
+
+
+
+
