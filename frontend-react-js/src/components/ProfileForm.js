@@ -4,29 +4,30 @@ import process from 'process';
 import {getAccessToken} from 'lib/CheckAuth';
 
 export default function ProfileForm(props) {
-  const [bio, setBio] = React.useState(0);
-  const [displayName, setDisplayName] = React.useState(0);
+  const [bio, setBio] = React.useState('');
+  const [displayName, setDisplayName] = React.useState('');
 
   React.useEffect(()=>{
-    console.log('useEffects',props)
-    setBio(props.profile.bio);
+    setBio(props.profile.bio || '');
     setDisplayName(props.profile.display_name);
   }, [props.profile])
 
   const s3uploadkey = async (event)=> {
     try {
       console.log('s3upload')
-      const backend_url = "https://1qm6daruxd.execute-api.us-east-1.amazonaws.com/avatars/key_upload"
+      const gateway_url = "${process.env.REACT_APP_API_GATEWAY_ENDPOINT_URL}/avatars/key_upload"
       await getAccessToken()
       const access_token = localStorage.getItem("access_token")
-      const res = await fetch(backend_url, {
+      const res = await fetch(gateway_url, {
         method: "POST",
+        mode: {cors: true},
         headers: {
-          'Origin': "https://3000-ramiroolea-awsbootcampc-01pc16ng2b2.ws-us97.gitpod.io",
+          'Origin': process.env.REACT_APP_FRONTEND_URL,
           'Authorization': `Bearer ${access_token}`,
           'Accept': 'application/json',
           'Content-Type': 'application/json'
-      }})
+        }
+      })
       let data = await res.json();
       if (res.status === 200) {
         console.log('presigned url',data)
@@ -77,7 +78,7 @@ export default function ProfileForm(props) {
       const res = await fetch(backend_url, {
         method: "POST",
         headers: {
-          'Authorization': `Bearer ${access_token}`,
+          'Authorization': 'Bearer ${access_token}',
           'Accept': 'application/json',
           'Content-Type': 'application/json'
         },
