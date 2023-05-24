@@ -27,3 +27,6 @@
 ![image](https://github.com/ramiro-olea/aws-bootcamp-cruddur-2023/assets/62669887/3ff843c9-878f-4902-b017-bde29a04fb73)
 ![image](https://github.com/ramiro-olea/aws-bootcamp-cruddur-2023/assets/62669887/74394a67-8257-4f94-84b8-9b4cddf07664)
 
+** Troubleshooting:
+ - Remove VPC from CodeBuild
+ - Remove env vars from buildspec.yml
