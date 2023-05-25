@@ -30,3 +30,8 @@
 ** Troubleshooting:
  - Remove VPC from CodeBuild
  - Remove env vars from buildspec.yml
+ - Change to Repository in mi GitHub account and add Pull requests:
+ ![image](https://github.com/ramiro-olea/aws-bootcamp-cruddur-2023/assets/62669887/1e959a75-1c88-4b59-aa0f-c0a75289c70c)
+ ![image](https://github.com/ramiro-olea/aws-bootcamp-cruddur-2023/assets/62669887/2b26c018-d50f-4dcf-926c-7307492ee4a9)
+ - 
+
